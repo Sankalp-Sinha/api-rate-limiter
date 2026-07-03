@@ -4,13 +4,7 @@ from starlette.responses import JSONResponse
 
 from app.services.redis_client import redis_client
 from app.services.redis_token_bucket import RedisTokenBucketLimiter
-
-
-limiter = RedisTokenBucketLimiter(
-    redis_client=redis_client,
-    capacity=5,
-    refill_rate=1
-)
+from app.services.api_key_service import get_api_key_details
 
 
 class RateLimiterMiddleware(BaseHTTPMiddleware):
@@ -22,15 +16,47 @@ class RateLimiterMiddleware(BaseHTTPMiddleware):
         if request.url.path not in rate_limited_paths:
             return await call_next(request)
 
-        client_ip = request.client.host if request.client else "unknown"
-        key = f"{client_ip}:{request.url.path}"
+        api_key = request.headers.get("x-api-key")
+
+        if not api_key:
+            return JSONResponse(
+                status_code=401,
+                content={
+                    "error": "Unauthorized",
+                    "message": "Missing API key. Please provide x-api-key header."
+                }
+            )
+
+        api_key_details = get_api_key_details(api_key)
+
+        if not api_key_details:
+            return JSONResponse(
+                status_code=401,
+                content={
+                    "error": "Unauthorized",
+                    "message": "Invalid API key."
+                }
+            )
+
+        capacity = api_key_details["capacity"]
+        refill_rate = api_key_details["refill_rate"]
+        plan = api_key_details["plan"]
+
+        limiter = RedisTokenBucketLimiter(
+            redis_client=redis_client,
+            capacity=capacity,
+            refill_rate=refill_rate
+        )
+
+        key = f"api_key:{api_key}:{request.url.path}"
 
         allowed, remaining, retry_after, reset_after = await limiter.allow_request(key)
 
         headers = {
-            "X-RateLimit-Limit": str(limiter.capacity),
+            "X-RateLimit-Limit": str(capacity),
             "X-RateLimit-Remaining": str(remaining),
             "X-RateLimit-Reset": str(reset_after),
+            "X-RateLimit-Plan": plan
         }
 
         if not allowed:
@@ -41,6 +67,7 @@ class RateLimiterMiddleware(BaseHTTPMiddleware):
                 content={
                     "error": "Too Many Requests",
                     "message": "Rate limit exceeded. Please try again later.",
+                    "plan": plan,
                     "retry_after_seconds": retry_after
                 },
                 headers=headers
