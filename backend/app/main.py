@@ -12,6 +12,9 @@ from app.routers.project_api_keys import (
 from app.routers.project_policies import (
     router as project_policies_router,
 )
+from app.routers.rate_limit_check import (
+    router as rate_limit_check_router,
+)
 
 from app.db import engine
 from app.middleware.rate_limiter import RateLimiterMiddleware
@@ -38,6 +41,7 @@ fastapi_app.include_router(analytics_router)
 fastapi_app.include_router(projects_router)
 fastapi_app.include_router(project_api_keys_router)
 fastapi_app.include_router(project_policies_router)
+fastapi_app.include_router(rate_limit_check_router)
 
 
 app = FastAPI(

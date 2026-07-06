@@ -21,18 +21,24 @@ class RequestLog(Base):
 
     __table_args__ = (
         Index(
-            "ix_request_logs_route_created_at",
+            "ix_request_logs_route_created",
             "route_path",
             "created_at",
         ),
         Index(
-            "ix_request_logs_api_key_created_at",
+            "ix_request_logs_api_key_created",
             "api_key_id",
             "created_at",
         ),
         Index(
-            "ix_request_logs_decision_created_at",
+            "ix_request_logs_decision_created",
             "decision",
+            "created_at",
+        ),
+        Index(
+            "ix_request_logs_project_policy_created",
+            "project_id",
+            "policy_id",
             "created_at",
         ),
     )
@@ -57,6 +63,31 @@ class RequestLog(Base):
         ),
         nullable=True,
         index=True,
+    )
+
+    project_id: Mapped[int | None] = mapped_column(
+        ForeignKey(
+            "projects.id",
+            ondelete="SET NULL",
+        ),
+        nullable=True,
+        index=True,
+    )
+
+    policy_id: Mapped[int | None] = mapped_column(
+        ForeignKey(
+            "rate_limit_policies.id",
+            ondelete="SET NULL",
+        ),
+        nullable=True,
+        index=True,
+    )
+
+    # Hash of user:42 / ip:... / org:...
+    # We do not store the raw subject.
+    subject_hash: Mapped[str | None] = mapped_column(
+        String(64),
+        nullable=True,
     )
 
     plan_name: Mapped[str | None] = mapped_column(
@@ -106,6 +137,6 @@ class RequestLog(Base):
 
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True),
-        server_default=func.now(),
         nullable=False,
+        server_default=func.now(),
     )
