@@ -1,10 +1,11 @@
 from fastapi import Request
+from starlette.concurrency import run_in_threadpool
 from starlette.middleware.base import BaseHTTPMiddleware
 from starlette.responses import JSONResponse
 
+from app.services.api_key_service import get_rate_limit_context
 from app.services.redis_client import redis_client
 from app.services.redis_token_bucket import RedisTokenBucketLimiter
-from app.services.api_key_service import get_api_key_details
 
 
 class RateLimiterMiddleware(BaseHTTPMiddleware):
@@ -23,40 +24,72 @@ class RateLimiterMiddleware(BaseHTTPMiddleware):
                 status_code=401,
                 content={
                     "error": "Unauthorized",
-                    "message": "Missing API key. Please provide x-api-key header."
+                    "message": (
+                        "Missing API key. "
+                        "Please provide x-api-key header."
+                    )
                 }
             )
 
-        api_key_details = get_api_key_details(api_key)
+        lookup_status, context = await run_in_threadpool(
+            get_rate_limit_context,
+            api_key,
+            request.url.path,
+            request.method
+        )
 
-        if not api_key_details:
+        if lookup_status == "invalid_key":
             return JSONResponse(
                 status_code=401,
                 content={
                     "error": "Unauthorized",
-                    "message": "Invalid API key."
+                    "message": "Invalid or inactive API key."
                 }
             )
 
-        capacity = api_key_details["capacity"]
-        refill_rate = api_key_details["refill_rate"]
-        plan = api_key_details["plan"]
+        if lookup_status == "no_policy":
+            return JSONResponse(
+                status_code=403,
+                content={
+                    "error": "Forbidden",
+                    "message": (
+                        "No active rate-limit policy "
+                        "exists for this route."
+                    )
+                }
+            )
+
+        if context is None:
+            return JSONResponse(
+                status_code=500,
+                content={
+                    "error": "Internal Server Error"
+                }
+            )
 
         limiter = RedisTokenBucketLimiter(
             redis_client=redis_client,
-            capacity=capacity,
-            refill_rate=refill_rate
+            capacity=context.capacity,
+            refill_rate=context.refill_rate
         )
 
-        key = f"api_key:{api_key}:{request.url.path}"
+        redis_bucket_key = (
+            f"api_key_id:{context.api_key_id}:"
+            f"{request.method}:{request.url.path}"
+        )
 
-        allowed, remaining, retry_after, reset_after = await limiter.allow_request(key)
+        allowed, remaining, retry_after, reset_after = (
+            await limiter.allow_request(
+                redis_bucket_key,
+                tokens_required=context.tokens_required
+            )
+        )
 
         headers = {
-            "X-RateLimit-Limit": str(capacity),
+            "X-RateLimit-Limit": str(context.capacity),
             "X-RateLimit-Remaining": str(remaining),
             "X-RateLimit-Reset": str(reset_after),
-            "X-RateLimit-Plan": plan
+            "X-RateLimit-Plan": context.plan_name
         }
 
         if not allowed:
@@ -66,8 +99,11 @@ class RateLimiterMiddleware(BaseHTTPMiddleware):
                 status_code=429,
                 content={
                     "error": "Too Many Requests",
-                    "message": "Rate limit exceeded. Please try again later.",
-                    "plan": plan,
+                    "message": (
+                        "Rate limit exceeded. "
+                        "Please try again later."
+                    ),
+                    "plan": context.plan_name,
                     "retry_after_seconds": retry_after
                 },
                 headers=headers
