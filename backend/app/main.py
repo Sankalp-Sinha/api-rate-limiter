@@ -1,6 +1,7 @@
 from fastapi import FastAPI
 from sqlalchemy import text
 from starlette.responses import JSONResponse
+from app.routers.admin import router as admin_router
 
 from app.db import engine
 from app.middleware.rate_limiter import RateLimiterMiddleware
@@ -17,7 +18,7 @@ app = FastAPI(
 )
 
 app.add_middleware(RateLimiterMiddleware)
-
+app.include_router(admin_router)
 
 @app.get("/")
 def health_check():
