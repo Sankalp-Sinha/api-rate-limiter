@@ -6,6 +6,7 @@ import {
   KeyRound,
   Plus,
   ShieldOff,
+  BarChart3,
 } from "lucide-react";
 import Link from "next/link";
 import {
@@ -285,9 +286,21 @@ export default function ProjectDetailPage() {
           </p>
         </div>
 
-        <span className="rounded-full bg-emerald-500/10 px-4 py-2 text-sm text-emerald-400">
-          ● Active
-        </span>
+        <div className="flex items-center gap-3">
+    <Link
+      href={
+        `/dashboard/projects/${projectId}/analytics`
+      }
+      className="inline-flex items-center gap-2 rounded-lg border border-slate-700 px-4 py-2 text-sm text-slate-300 transition hover:bg-slate-900"
+    >
+      <BarChart3 size={17} />
+      View Analytics
+    </Link>
+
+    <span className="rounded-full bg-emerald-500/10 px-4 py-2 text-sm text-emerald-400">
+      ● Active
+    </span>
+  </div>
       </div>
 
 
