@@ -3,6 +3,7 @@ from app.models.plan import Plan
 from app.models.project import Project
 from app.models.rate_limit_policy import RateLimitPolicy
 from app.models.request_log import RequestLog
+from app.models.user import User
 
 
 
@@ -12,4 +13,5 @@ __all__ = [
     "Project",
     "RateLimitPolicy",
     "RequestLog",
+    "User",
 ]
