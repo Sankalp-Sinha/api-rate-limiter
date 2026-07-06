@@ -14,6 +14,9 @@ from app.services.request_log_service import safe_write_request_log
 
 class RateLimiterMiddleware(BaseHTTPMiddleware):
     async def dispatch(self, request: Request, call_next):
+        if request.method == "OPTIONS":
+            return await call_next(request)
+
         rate_limited_paths = [
             "/api/protected"
         ]
