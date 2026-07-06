@@ -25,10 +25,7 @@ class RateLimitPolicy(Base):
             "plan_id",
             "route_path",
             "http_method",
-            name=(
-                "uq_policy_project_plan_"
-                "route_method"
-            ),
+            name="uq_policy_project_plan_route_method",
         ),
 
         CheckConstraint(
@@ -42,8 +39,18 @@ class RateLimitPolicy(Base):
         ),
 
         CheckConstraint(
+            "refill_amount > 0",
+            name="ck_policy_refill_amount_positive",
+        ),
+
+        CheckConstraint(
             "tokens_required > 0",
             name="ck_policy_tokens_required_positive",
+        ),
+
+        CheckConstraint(
+            "refill_unit IN ('second', 'minute', 'hour')",
+            name="ck_policy_refill_unit_valid",
         ),
     )
 
@@ -54,57 +61,75 @@ class RateLimitPolicy(Base):
     project_id: Mapped[int | None] = mapped_column(
         ForeignKey(
             "projects.id",
-            ondelete="CASCADE"
+            ondelete="CASCADE",
         ),
         nullable=True,
-        index=True
+        index=True,
     )
 
     plan_id: Mapped[int] = mapped_column(
         ForeignKey(
             "plans.id",
-            ondelete="CASCADE"
+            ondelete="CASCADE",
         ),
         nullable=False,
-        index=True
+        index=True,
     )
 
     route_path: Mapped[str] = mapped_column(
         String(255),
-        nullable=False
+        nullable=False,
     )
 
     http_method: Mapped[str] = mapped_column(
         String(10),
-        nullable=False
+        nullable=False,
     )
 
     capacity: Mapped[int] = mapped_column(
         Integer,
-        nullable=False
+        nullable=False,
     )
 
+    # Internal normalized value:
+    # tokens added per second.
     refill_rate: Mapped[float] = mapped_column(
         Float,
-        nullable=False
+        nullable=False,
+    )
+
+    # Developer-facing value.
+    refill_amount: Mapped[float] = mapped_column(
+        Float,
+        nullable=False,
+        default=1.0,
+        server_default="1",
+    )
+
+    # second | minute | hour
+    refill_unit: Mapped[str] = mapped_column(
+        String(20),
+        nullable=False,
+        default="second",
+        server_default="second",
     )
 
     tokens_required: Mapped[int] = mapped_column(
         Integer,
         nullable=False,
         default=1,
-        server_default="1"
+        server_default="1",
     )
 
     is_active: Mapped[bool] = mapped_column(
         Boolean,
         nullable=False,
         default=True,
-        server_default="true"
+        server_default="true",
     )
 
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True),
         nullable=False,
-        server_default=func.now()
+        server_default=func.now(),
     )

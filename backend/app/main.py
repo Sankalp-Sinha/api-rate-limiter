@@ -6,6 +6,12 @@ from app.routers.analytics import router as analytics_router
 from app.routers.projects import (
     router as projects_router,
 )
+from app.routers.project_api_keys import (
+    router as project_api_keys_router,
+)
+from app.routers.project_policies import (
+    router as project_policies_router,
+)
 
 from app.db import engine
 from app.middleware.rate_limiter import RateLimiterMiddleware
@@ -30,6 +36,8 @@ fastapi_app.add_middleware(
 fastapi_app.include_router(admin_router)
 fastapi_app.include_router(analytics_router)
 fastapi_app.include_router(projects_router)
+fastapi_app.include_router(project_api_keys_router)
+fastapi_app.include_router(project_policies_router)
 
 
 app = FastAPI(

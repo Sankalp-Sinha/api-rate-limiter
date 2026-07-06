@@ -21,11 +21,6 @@ const navigation = [
     icon: FolderKanban,
   },
   {
-    name: "API Keys",
-    href: "/dashboard/api-keys",
-    icon: KeyRound,
-  },
-  {
     name: "Analytics",
     href: "/dashboard/analytics",
     icon: BarChart3,
