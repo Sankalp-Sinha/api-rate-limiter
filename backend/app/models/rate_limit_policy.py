@@ -21,27 +21,43 @@ class RateLimitPolicy(Base):
 
     __table_args__ = (
         UniqueConstraint(
+            "project_id",
             "plan_id",
             "route_path",
             "http_method",
-            name="uq_policy_plan_route_method"
+            name=(
+                "uq_policy_project_plan_"
+                "route_method"
+            ),
         ),
+
         CheckConstraint(
             "capacity > 0",
-            name="ck_policy_capacity_positive"
+            name="ck_policy_capacity_positive",
         ),
+
         CheckConstraint(
             "refill_rate > 0",
-            name="ck_policy_refill_rate_positive"
+            name="ck_policy_refill_rate_positive",
         ),
+
         CheckConstraint(
             "tokens_required > 0",
-            name="ck_policy_tokens_required_positive"
+            name="ck_policy_tokens_required_positive",
         ),
     )
 
     id: Mapped[int] = mapped_column(
         primary_key=True
+    )
+
+    project_id: Mapped[int | None] = mapped_column(
+        ForeignKey(
+            "projects.id",
+            ondelete="CASCADE"
+        ),
+        nullable=True,
+        index=True
     )
 
     plan_id: Mapped[int] = mapped_column(
@@ -75,18 +91,20 @@ class RateLimitPolicy(Base):
 
     tokens_required: Mapped[int] = mapped_column(
         Integer,
+        nullable=False,
         default=1,
-        nullable=False
+        server_default="1"
     )
 
     is_active: Mapped[bool] = mapped_column(
         Boolean,
+        nullable=False,
         default=True,
-        nullable=False
+        server_default="true"
     )
 
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True),
-        server_default=func.now(),
-        nullable=False
+        nullable=False,
+        server_default=func.now()
     )

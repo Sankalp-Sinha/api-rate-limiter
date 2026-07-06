@@ -3,7 +3,9 @@ import {
   Activity,
   BarChart3,
   Gauge,
+  FolderKanban,
   KeyRound,
+  Play,
   LayoutDashboard,
 } from "lucide-react";
 
@@ -12,6 +14,11 @@ const navigation = [
     name: "Overview",
     href: "/dashboard",
     icon: LayoutDashboard,
+  },
+  {
+    name: "Projects",
+    href: "/dashboard/projects",
+    icon: FolderKanban,
   },
   {
     name: "API Keys",

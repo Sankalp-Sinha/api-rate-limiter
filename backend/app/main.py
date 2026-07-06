@@ -3,6 +3,9 @@ from sqlalchemy import text
 from starlette.responses import JSONResponse
 from app.routers.admin import router as admin_router
 from app.routers.analytics import router as analytics_router
+from app.routers.projects import (
+    router as projects_router,
+)
 
 from app.db import engine
 from app.middleware.rate_limiter import RateLimiterMiddleware
@@ -26,6 +29,7 @@ fastapi_app.add_middleware(
 
 fastapi_app.include_router(admin_router)
 fastapi_app.include_router(analytics_router)
+fastapi_app.include_router(projects_router)
 
 
 app = FastAPI(
