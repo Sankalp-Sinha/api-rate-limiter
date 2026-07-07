@@ -37,20 +37,6 @@ DATABASE_URL = normalize_database_url(
 )
 
 
-if not DATABASE_URL.startswith(
-    (
-        "postgresql+psycopg://",
-        "postgresql://",
-        "postgres://",
-    )
-):
-    raise RuntimeError(
-        "DATABASE_URL has an invalid format. "
-        f"Received prefix: "
-        f"{DATABASE_URL[:30]!r}"
-    )
-
-
 class Base(DeclarativeBase):
     pass
 
@@ -68,3 +54,13 @@ SessionLocal = sessionmaker(
     autoflush=False,
     autocommit=False,
 )
+
+
+def get_db():
+    db = SessionLocal()
+
+    try:
+        yield db
+
+    finally:
+        db.close()
