@@ -1,9 +1,17 @@
 from fastapi import FastAPI
 from sqlalchemy import text
 from fastapi import Response
+import os
 from starlette.responses import JSONResponse
 from app.routers.admin import router as admin_router
 from app.routers.analytics import router as analytics_router
+
+from fastapi.middleware.trustedhost import (
+    TrustedHostMiddleware,
+)
+from app.routers.health import (
+    router as health_router,
+)
 from app.routers.projects import (
     router as projects_router,
 )
@@ -32,9 +40,43 @@ from app.middleware.prometheus_metrics import (
 )
 
 from app.db import engine
-from app.middleware.rate_limiter import RateLimiterMiddleware
 from app.services.redis_client import redis_client
 from fastapi.middleware.cors import CORSMiddleware
+
+
+def parse_csv_env(
+    name: str,
+    default: str = "",
+) -> list[str]:
+    raw_value = os.getenv(
+        name,
+        default,
+    )
+
+    return [
+        item.strip()
+        for item in raw_value.split(",")
+        if item.strip()
+    ]
+
+
+CORS_ORIGINS = parse_csv_env(
+    "CORS_ORIGINS",
+    (
+        "http://localhost:3000,"
+        "http://127.0.0.1:3000"
+    ),
+)
+
+ALLOWED_HOSTS = parse_csv_env(
+    "ALLOWED_HOSTS",
+    (
+        "localhost,"
+        "127.0.0.1,"
+        "0.0.0.0,"
+        "host.docker.internal"
+    ),
+)
 
 
 fastapi_app = FastAPI(
@@ -46,21 +88,36 @@ fastapi_app = FastAPI(
     version="1.0.0",
 )
 
-@fastapi_app.get(
-    "/metrics",
-    include_in_schema=False,
-)
-def prometheus_metrics():
-    return Response(
-        content=generate_latest(),
-        media_type=CONTENT_TYPE_LATEST,
+ENABLE_METRICS = (
+    os.getenv(
+        "ENABLE_METRICS",
+        "true",
     )
+    .strip()
+    .lower()
+    == "true"
+)
+
+
+if ENABLE_METRICS:
+
+    @fastapi_app.get(
+        "/metrics",
+        include_in_schema=False,
+    )
+    def prometheus_metrics():
+        return Response(
+            content=generate_latest(),
+            media_type=CONTENT_TYPE_LATEST,
+        )
 
 fastapi_app.add_middleware(
-    RateLimiterMiddleware
-)
-fastapi_app.add_middleware(
     PrometheusMiddleware
+)
+
+fastapi_app.add_middleware(
+    TrustedHostMiddleware,
+    allowed_hosts=ALLOWED_HOSTS,
 )
 
 
@@ -70,6 +127,7 @@ fastapi_app.include_router(project_policies_router)
 fastapi_app.include_router(rate_limit_check_router)
 fastapi_app.include_router(project_analytics_router)
 fastapi_app.include_router(auth_router)
+fastapi_app.include_router(health_router)
 
 
 app = FastAPI(
@@ -82,7 +140,6 @@ app = FastAPI(
 )
 
 
-app.add_middleware(RateLimiterMiddleware)
 app.include_router(admin_router)
 app.include_router(analytics_router)
 
@@ -146,29 +203,37 @@ def public_api():
     }
 
 
-@fastapi_app.get("/api/protected")
-def protected_api():
-    return {
-        "message": "This is a protected API endpoint"
-    }
 
 
 
 app = CORSMiddleware(
     app=fastapi_app,
-    allow_origins=[
-        "http://localhost:3000",
-        "http://127.0.0.1:3000",
-    ],
+
+    allow_origins=CORS_ORIGINS,
+
     allow_credentials=True,
-    allow_methods=["*"],
-    allow_headers=["*"],
+
+    allow_methods=[
+        "GET",
+        "POST",
+        "PUT",
+        "PATCH",
+        "DELETE",
+        "OPTIONS",
+    ],
+
+    allow_headers=[
+        "Authorization",
+        "Content-Type",
+        "x-admin-key",
+        "x-api-key",
+    ],
+
     expose_headers=[
+        "X-Request-ID",
         "X-RateLimit-Limit",
         "X-RateLimit-Remaining",
         "X-RateLimit-Reset",
-        "X-RateLimit-Plan",
-        "X-Request-ID",
         "Retry-After",
     ],
 )

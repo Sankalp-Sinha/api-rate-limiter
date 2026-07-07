@@ -3,6 +3,7 @@ from uuid import uuid4
 
 from fastapi import (
     APIRouter,
+    BackgroundTasks,
     Header,
     HTTPException,
 )
@@ -83,6 +84,8 @@ def extract_bearer_token(
 )
 async def check_rate_limit(
     payload: RateLimitCheckRequest,
+
+    background_tasks: BackgroundTasks,
 
     authorization: str | None = Header(
         default=None,
@@ -181,7 +184,10 @@ async def check_rate_limit(
     # ------------------------------------------
 
     subject_hash = hash_subject(
-        payload.subject
+        project_id=(
+            key_context.project_id
+        ),
+        subject=payload.subject,
     )
 
 
@@ -264,7 +270,7 @@ async def check_rate_limit(
         duration_seconds * 1000
     )
 
-    await run_in_threadpool(
+    background_tasks.add_task(
         safe_write_check_request_log,
 
         request_id=request_id,

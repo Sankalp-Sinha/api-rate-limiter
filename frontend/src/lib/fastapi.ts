@@ -7,26 +7,32 @@ import {
 } from "@/lib/server-auth";
 
 
-const FASTAPI_BASE_URL =
-  process.env.FASTAPI_BASE_URL;
+function requireEnv(
+  value: string | undefined,
+  name: string
+): string {
+  if (!value) {
+    throw new Error(
+      `${name} is not configured`
+    );
+  }
 
-const ADMIN_API_KEY =
-  process.env.ADMIN_API_KEY;
-
-
-if (!FASTAPI_BASE_URL) {
-  throw new Error(
-    "FASTAPI_BASE_URL environment variable "
-    + "is not configured"
-  );
+  return value;
 }
 
-if (!ADMIN_API_KEY) {
-  throw new Error(
-    "ADMIN_API_KEY environment variable "
-    + "is not configured"
+
+const FASTAPI_BASE_URL: string =
+  requireEnv(
+    process.env.FASTAPI_BASE_URL,
+    "FASTAPI_BASE_URL"
   );
-}
+
+
+const ADMIN_API_KEY: string =
+  requireEnv(
+    process.env.ADMIN_API_KEY,
+    "ADMIN_API_KEY"
+  );
 
 
 type FastApiRequestOptions = {
@@ -35,7 +41,8 @@ type FastApiRequestOptions = {
 };
 
 
-function authenticationRequiredResponse() {
+function authenticationRequiredResponse():
+  Response {
   return new Response(
     JSON.stringify({
       detail:

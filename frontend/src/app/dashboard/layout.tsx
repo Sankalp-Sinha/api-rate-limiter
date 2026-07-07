@@ -2,7 +2,6 @@ import Link from "next/link";
 import {
   Activity,
   FolderKanban,
-  Play,
   ShieldCheck,
 } from "lucide-react";
 
@@ -19,11 +18,6 @@ const navigation = [
     name: "Projects",
     href: "/dashboard/projects",
     icon: FolderKanban,
-  },
-  {
-    name: "Playground",
-    href: "/dashboard/playground",
-    icon: Play,
   },
 ];
 

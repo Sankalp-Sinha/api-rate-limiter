@@ -32,3 +32,5 @@ GET /
 GET /health/redis
 GET /api/public
 GET /api/protected
+
+
