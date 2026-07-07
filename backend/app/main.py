@@ -78,6 +78,24 @@ ALLOWED_HOSTS = parse_csv_env(
     ),
 )
 
+for railway_host_env in (
+    "RAILWAY_PUBLIC_DOMAIN",
+    "RAILWAY_PRIVATE_DOMAIN",
+):
+    railway_host = os.getenv(
+        railway_host_env,
+        "",
+    ).strip()
+
+    if (
+        railway_host
+        and railway_host
+        not in ALLOWED_HOSTS
+    ):
+        ALLOWED_HOSTS.append(
+            railway_host
+        )
+
 
 fastapi_app = FastAPI(
     title="Distributed API Rate Limiter",

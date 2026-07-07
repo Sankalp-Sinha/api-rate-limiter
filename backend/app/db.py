@@ -5,6 +5,9 @@ from pathlib import Path
 from dotenv import load_dotenv
 from sqlalchemy import create_engine
 from sqlalchemy.orm import DeclarativeBase, Session, sessionmaker
+from app.database_url import (
+    normalize_database_url,
+)
 
 
 BACKEND_DIR = Path(__file__).resolve().parent.parent
@@ -14,7 +17,20 @@ load_dotenv(
     override=True
 )
 
-DATABASE_URL = os.getenv("DATABASE_URL")
+RAW_DATABASE_URL = os.getenv(
+    "DATABASE_URL"
+)
+
+if not RAW_DATABASE_URL:
+    raise RuntimeError(
+        "DATABASE_URL environment "
+        "variable is not configured"
+    )
+
+
+DATABASE_URL = normalize_database_url(
+    RAW_DATABASE_URL
+)
 
 if not DATABASE_URL:
     raise RuntimeError(
