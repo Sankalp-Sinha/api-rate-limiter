@@ -1,7 +1,6 @@
 import Link from "next/link";
 import {
   Activity,
-  BarChart3,
   FolderKanban,
   Play,
   ShieldCheck,
@@ -20,11 +19,6 @@ const navigation = [
     name: "Projects",
     href: "/dashboard/projects",
     icon: FolderKanban,
-  },
-  {
-    name: "Analytics",
-    href: "/dashboard/analytics",
-    icon: BarChart3,
   },
   {
     name: "Playground",

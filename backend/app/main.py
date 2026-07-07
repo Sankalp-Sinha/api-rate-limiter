@@ -42,8 +42,6 @@ fastapi_app.add_middleware(
 )
 
 
-fastapi_app.include_router(admin_router)
-fastapi_app.include_router(analytics_router)
 fastapi_app.include_router(projects_router)
 fastapi_app.include_router(project_api_keys_router)
 fastapi_app.include_router(project_policies_router)

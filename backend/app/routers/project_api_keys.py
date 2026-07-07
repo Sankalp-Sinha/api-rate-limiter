@@ -8,6 +8,7 @@ from fastapi import (
 from app.dependencies.admin_auth import (
     require_admin,
 )
+from app.models.user import User
 from app.schemas.project_api_key import (
     ProjectApiKeyCreateRequest,
     ProjectApiKeyCreatedResponse,
@@ -18,17 +19,11 @@ from app.services.project_api_key_service import (
     list_project_api_keys,
     revoke_project_api_key,
 )
-from app.services.project_service import (
-    get_project,
-)
 
 
 router = APIRouter(
     prefix="/admin/projects",
     tags=["Project API Keys"],
-    dependencies=[
-        Depends(require_admin)
-    ],
 )
 
 
@@ -40,20 +35,23 @@ router = APIRouter(
 )
 def get_project_api_keys_endpoint(
     project_id: int,
+
+    current_user: User = Depends(
+        require_admin
+    ),
 ):
-    project = get_project(
-        project_id=project_id
+    api_keys = list_project_api_keys(
+        project_id=project_id,
+        owner_id=current_user.id,
     )
 
-    if project is None:
+    if api_keys is None:
         raise HTTPException(
             status_code=404,
             detail="Project not found",
         )
 
-    return list_project_api_keys(
-        project_id=project_id
-    )
+    return api_keys
 
 
 @router.post(
@@ -66,9 +64,14 @@ def get_project_api_keys_endpoint(
 def create_project_api_key_endpoint(
     project_id: int,
     payload: ProjectApiKeyCreateRequest,
+
+    current_user: User = Depends(
+        require_admin
+    ),
 ):
     result = create_project_api_key(
         project_id=project_id,
+        owner_id=current_user.id,
         name=payload.name,
     )
 
@@ -91,10 +94,15 @@ def create_project_api_key_endpoint(
 def revoke_project_api_key_endpoint(
     project_id: int,
     api_key_id: int,
+
+    current_user: User = Depends(
+        require_admin
+    ),
 ):
     api_key = revoke_project_api_key(
         project_id=project_id,
         api_key_id=api_key_id,
+        owner_id=current_user.id,
     )
 
     if api_key is None:

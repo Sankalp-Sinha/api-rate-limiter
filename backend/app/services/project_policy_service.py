@@ -45,25 +45,43 @@ def policy_to_dict(
 ) -> dict:
     return {
         "id": policy.id,
-        "project_id": policy.project_id,
-        "route_path": policy.route_path,
-        "http_method": policy.http_method,
-        "capacity": policy.capacity,
-        "refill_rate": policy.refill_rate,
+        "project_id": (
+            policy.project_id
+        ),
+        "route_path": (
+            policy.route_path
+        ),
+        "http_method": (
+            policy.http_method
+        ),
+        "capacity": (
+            policy.capacity
+        ),
+        "refill_rate": (
+            policy.refill_rate
+        ),
         "refill_amount": (
             policy.refill_amount
         ),
-        "refill_unit": policy.refill_unit,
+        "refill_unit": (
+            policy.refill_unit
+        ),
         "tokens_required": (
             policy.tokens_required
         ),
-        "is_active": policy.is_active,
-        "created_at": policy.created_at,
+        "is_active": (
+            policy.is_active
+        ),
+        "created_at": (
+            policy.created_at
+        ),
     }
 
 
 def create_project_policy(
+    *,
     project_id: int,
+    owner_id: int,
     route_path: str,
     http_method: str,
     capacity: int,
@@ -75,12 +93,17 @@ def create_project_policy(
         project = db.scalar(
             select(Project).where(
                 Project.id == project_id,
+                Project.owner_id
+                == owner_id,
                 Project.is_active.is_(True),
             )
         )
 
         if project is None:
-            return "project_not_found", None
+            return (
+                "project_not_found",
+                None,
+            )
 
         free_plan = db.scalar(
             select(Plan).where(
@@ -90,7 +113,10 @@ def create_project_policy(
         )
 
         if free_plan is None:
-            return "free_plan_not_found", None
+            return (
+                "free_plan_not_found",
+                None,
+            )
 
         normalized_path = (
             normalize_route_path(
@@ -103,7 +129,9 @@ def create_project_policy(
         )
 
         existing = db.scalar(
-            select(RateLimitPolicy).where(
+            select(
+                RateLimitPolicy
+            ).where(
                 RateLimitPolicy.project_id
                 == project_id,
 
@@ -119,7 +147,10 @@ def create_project_policy(
         )
 
         if existing is not None:
-            return "duplicate", None
+            return (
+                "duplicate",
+                None,
+            )
 
         refill_rate = (
             calculate_refill_rate(
@@ -152,9 +183,22 @@ def create_project_policy(
 
 
 def list_project_policies(
+    *,
     project_id: int,
-) -> list[dict]:
+    owner_id: int,
+) -> list[dict] | None:
     with SessionLocal() as db:
+        project = db.scalar(
+            select(Project).where(
+                Project.id == project_id,
+                Project.owner_id
+                == owner_id,
+            )
+        )
+
+        if project is None:
+            return None
+
         policies = db.scalars(
             select(RateLimitPolicy)
             .where(
@@ -162,7 +206,9 @@ def list_project_policies(
                 == project_id
             )
             .order_by(
-                RateLimitPolicy.created_at.desc()
+                RateLimitPolicy
+                .created_at
+                .desc()
             )
         ).all()
 
@@ -173,8 +219,10 @@ def list_project_policies(
 
 
 def update_project_policy(
+    *,
     project_id: int,
     policy_id: int,
+    owner_id: int,
     capacity: int,
     refill_amount: float,
     refill_unit: str,
@@ -182,12 +230,21 @@ def update_project_policy(
 ) -> dict | None:
     with SessionLocal() as db:
         policy = db.scalar(
-            select(RateLimitPolicy).where(
+            select(RateLimitPolicy)
+            .join(
+                Project,
+                RateLimitPolicy.project_id
+                == Project.id,
+            )
+            .where(
                 RateLimitPolicy.id
                 == policy_id,
 
                 RateLimitPolicy.project_id
                 == project_id,
+
+                Project.owner_id
+                == owner_id,
             )
         )
 
@@ -222,17 +279,28 @@ def update_project_policy(
 
 
 def deactivate_project_policy(
+    *,
     project_id: int,
     policy_id: int,
+    owner_id: int,
 ) -> dict | None:
     with SessionLocal() as db:
         policy = db.scalar(
-            select(RateLimitPolicy).where(
+            select(RateLimitPolicy)
+            .join(
+                Project,
+                RateLimitPolicy.project_id
+                == Project.id,
+            )
+            .where(
                 RateLimitPolicy.id
                 == policy_id,
 
                 RateLimitPolicy.project_id
                 == project_id,
+
+                Project.owner_id
+                == owner_id,
             )
         )
 

@@ -7,35 +7,27 @@ from app.db import SessionLocal
 from app.models.project import Project
 
 
-def make_slug(name: str) -> str:
-    """
-    Convert:
-        AI Resume Generator
-    into:
-        ai-resume-generator
-    """
-
-    slug = name.strip().lower()
-
+def make_slug(
+    name: str,
+) -> str:
     slug = re.sub(
         r"[^a-z0-9]+",
         "-",
-        slug
+        name.strip().lower(),
     )
 
     slug = slug.strip("-")
 
-    return slug
+    return slug or "project"
 
 
 def create_project(
-    name: str
+    *,
+    name: str,
+    owner_id: int,
 ) -> Project:
     with SessionLocal() as db:
         base_slug = make_slug(name)
-
-        if not base_slug:
-            base_slug = "project"
 
         slug = base_slug
 
@@ -45,14 +37,14 @@ def create_project(
             )
         )
 
-        if existing:
-            short_id = uuid4().hex[:8]
-
+        if existing is not None:
             slug = (
-                f"{base_slug}-{short_id}"
+                f"{base_slug}-"
+                f"{uuid4().hex[:8]}"
             )
 
         project = Project(
+            owner_id=owner_id,
             name=name.strip(),
             slug=slug,
             is_active=True,
@@ -65,10 +57,17 @@ def create_project(
         return project
 
 
-def list_projects() -> list[Project]:
+def list_projects(
+    *,
+    owner_id: int,
+) -> list[Project]:
     with SessionLocal() as db:
         projects = db.scalars(
             select(Project)
+            .where(
+                Project.owner_id
+                == owner_id
+            )
             .order_by(
                 Project.created_at.desc()
             )
@@ -78,11 +77,15 @@ def list_projects() -> list[Project]:
 
 
 def get_project(
-    project_id: int
+    *,
+    project_id: int,
+    owner_id: int,
 ) -> Project | None:
     with SessionLocal() as db:
         return db.scalar(
             select(Project).where(
-                Project.id == project_id
+                Project.id == project_id,
+                Project.owner_id
+                == owner_id,
             )
         )

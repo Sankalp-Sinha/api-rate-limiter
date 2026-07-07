@@ -8,6 +8,7 @@ from fastapi import (
 from app.dependencies.admin_auth import (
     require_admin,
 )
+from app.models.user import User
 from app.schemas.project_analytics import (
     EndpointAnalyticsItem,
     ProjectAnalyticsSummaryResponse,
@@ -24,9 +25,6 @@ from app.services.project_service import (
 router = APIRouter(
     prefix="/admin/projects",
     tags=["Project Analytics"],
-    dependencies=[
-        Depends(require_admin)
-    ],
 )
 
 
@@ -44,9 +42,14 @@ def get_project_summary_endpoint(
         ge=1,
         le=720,
     ),
+
+    current_user: User = Depends(
+        require_admin
+    ),
 ):
     project = get_project(
-        project_id=project_id
+        project_id=project_id,
+        owner_id=current_user.id,
     )
 
     if project is None:
@@ -75,9 +78,14 @@ def get_endpoint_analytics_endpoint(
         ge=1,
         le=720,
     ),
+
+    current_user: User = Depends(
+        require_admin
+    ),
 ):
     project = get_project(
-        project_id=project_id
+        project_id=project_id,
+        owner_id=current_user.id,
     )
 
     if project is None:

@@ -8,6 +8,7 @@ from fastapi import (
 from app.dependencies.admin_auth import (
     require_admin,
 )
+from app.models.user import User
 from app.schemas.project_policy import (
     ProjectPolicyCreateRequest,
     ProjectPolicyResponse,
@@ -24,9 +25,6 @@ from app.services.project_policy_service import (
 router = APIRouter(
     prefix="/admin/projects",
     tags=["Project Policies"],
-    dependencies=[
-        Depends(require_admin)
-    ],
 )
 
 
@@ -38,10 +36,23 @@ router = APIRouter(
 )
 def list_project_policies_endpoint(
     project_id: int,
+
+    current_user: User = Depends(
+        require_admin
+    ),
 ):
-    return list_project_policies(
-        project_id=project_id
+    policies = list_project_policies(
+        project_id=project_id,
+        owner_id=current_user.id,
     )
+
+    if policies is None:
+        raise HTTPException(
+            status_code=404,
+            detail="Project not found",
+        )
+
+    return policies
 
 
 @router.post(
@@ -52,10 +63,15 @@ def list_project_policies_endpoint(
 def create_project_policy_endpoint(
     project_id: int,
     payload: ProjectPolicyCreateRequest,
+
+    current_user: User = Depends(
+        require_admin
+    ),
 ):
     result_status, policy = (
         create_project_policy(
             project_id=project_id,
+            owner_id=current_user.id,
             route_path=payload.route_path,
             http_method=payload.http_method,
             capacity=payload.capacity,
@@ -113,15 +129,22 @@ def update_project_policy_endpoint(
     project_id: int,
     policy_id: int,
     payload: ProjectPolicyUpdateRequest,
+
+    current_user: User = Depends(
+        require_admin
+    ),
 ):
     policy = update_project_policy(
         project_id=project_id,
         policy_id=policy_id,
+        owner_id=current_user.id,
         capacity=payload.capacity,
         refill_amount=(
             payload.refill_amount
         ),
-        refill_unit=payload.refill_unit,
+        refill_unit=(
+            payload.refill_unit
+        ),
         tokens_required=(
             payload.tokens_required
         ),
@@ -147,10 +170,15 @@ def update_project_policy_endpoint(
 def deactivate_project_policy_endpoint(
     project_id: int,
     policy_id: int,
+
+    current_user: User = Depends(
+        require_admin
+    ),
 ):
     policy = deactivate_project_policy(
         project_id=project_id,
         policy_id=policy_id,
+        owner_id=current_user.id,
     )
 
     if policy is None:

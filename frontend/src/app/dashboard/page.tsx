@@ -1,44 +1,41 @@
 "use client";
 
 import {
-  Activity,
-  Ban,
-  Clock3,
-  KeyRound,
+  FolderKanban,
+  ShieldCheck,
+  UserRound,
 } from "lucide-react";
+import Link from "next/link";
 import {
-  useCallback,
   useEffect,
   useState,
 } from "react";
 
 
-type Summary = {
-  total_requests: number;
-  allowed_requests: number;
-  rate_limited_requests: number;
-  server_error_requests: number;
-  average_latency_ms: number;
+type User = {
+  id: number;
+  name: string;
+  email: string;
+  is_active: boolean;
+  created_at: string;
 };
 
 
-type ApiKeyItem = {
+type Project = {
   id: number;
   name: string;
-  key_prefix: string;
-  plan_name: string;
+  slug: string;
   is_active: boolean;
-  expires_at: string | null;
   created_at: string;
 };
 
 
 export default function DashboardPage() {
-  const [summary, setSummary] =
-    useState<Summary | null>(null);
+  const [user, setUser] =
+    useState<User | null>(null);
 
-  const [activeKeys, setActiveKeys] =
-    useState(0);
+  const [projects, setProjects] =
+    useState<Project[]>([]);
 
   const [loading, setLoading] =
     useState(true);
@@ -47,56 +44,55 @@ export default function DashboardPage() {
     useState<string | null>(null);
 
 
-  const loadDashboard = useCallback(
-    async () => {
+  useEffect(() => {
+    async function loadDashboard() {
       try {
         setLoading(true);
         setError(null);
 
         const [
-          summaryResponse,
-          keysResponse,
+          userResponse,
+          projectsResponse,
         ] = await Promise.all([
           fetch(
-            "/api/dashboard/summary",
+            "/api/auth/me",
             {
               cache: "no-store",
             }
           ),
 
           fetch(
-            "/api/admin/api-keys",
+            "/api/admin/projects",
             {
               cache: "no-store",
             }
           ),
         ]);
 
-        if (!summaryResponse.ok) {
+        const userData =
+          await userResponse.json();
+
+        const projectsData =
+          await projectsResponse.json();
+
+        if (!userResponse.ok) {
           throw new Error(
-            "Failed to load analytics summary"
+            userData.detail ??
+            userData.error ??
+            "Could not load account"
           );
         }
 
-        if (!keysResponse.ok) {
+        if (!projectsResponse.ok) {
           throw new Error(
-            "Failed to load API keys"
+            projectsData.detail ??
+            projectsData.error ??
+            "Could not load projects"
           );
         }
 
-        const summaryData: Summary =
-          await summaryResponse.json();
-
-        const keysData: ApiKeyItem[] =
-          await keysResponse.json();
-
-        setSummary(summaryData);
-
-        setActiveKeys(
-          keysData.filter(
-            (key) => key.is_active
-          ).length
-        );
+        setUser(userData);
+        setProjects(projectsData);
       } catch (err) {
         setError(
           err instanceof Error
@@ -106,67 +102,32 @@ export default function DashboardPage() {
       } finally {
         setLoading(false);
       }
-    },
-    []
-  );
+    }
 
-
-  useEffect(() => {
     void loadDashboard();
-  }, [loadDashboard]);
+  }, []);
 
 
-  const stats = [
-    {
-      label: "Total Requests",
-      value:
-        summary?.total_requests
-          .toLocaleString() ?? "0",
-      icon: Activity,
-    },
-    {
-      label: "Blocked Requests",
-      value:
-        summary?.rate_limited_requests
-          .toLocaleString() ?? "0",
-      icon: Ban,
-    },
-    {
-      label: "Average Latency",
-      value:
-        `${summary?.average_latency_ms ?? 0} ms`,
-      icon: Clock3,
-    },
-    {
-      label: "Active API Keys",
-      value: activeKeys.toString(),
-      icon: KeyRound,
-    },
-  ];
+  const activeProjects =
+    projects.filter(
+      (project) =>
+        project.is_active
+    ).length;
 
 
   return (
     <div>
-      <div className="mb-8 flex items-start justify-between">
-        <div>
-          <h2 className="text-3xl font-bold">
-            Overview
-          </h2>
+      <div className="mb-8">
+        <h2 className="text-3xl font-bold">
+          {user
+            ? `Welcome, ${user.name}`
+            : "Dashboard"}
+        </h2>
 
-          <p className="mt-2 text-slate-400">
-            Monitor API traffic and rate-limit activity.
-          </p>
-        </div>
-
-        <button
-          onClick={() => void loadDashboard()}
-          disabled={loading}
-          className="rounded-lg border border-slate-700 px-4 py-2 text-sm transition hover:bg-slate-900 disabled:opacity-50"
-        >
-          {loading
-            ? "Refreshing..."
-            : "Refresh"}
-        </button>
+        <p className="mt-2 text-slate-400">
+          Manage your RateGuard projects
+          and protected endpoints.
+        </p>
       </div>
 
 
@@ -177,133 +138,143 @@ export default function DashboardPage() {
       )}
 
 
-      <div className="grid gap-5 md:grid-cols-2 xl:grid-cols-4">
-        {stats.map((stat) => {
-          const Icon = stat.icon;
+      <div className="grid gap-5 md:grid-cols-3">
+        <StatCard
+          label="Your Projects"
+          value={
+            loading
+              ? "..."
+              : projects.length
+          }
+          icon={FolderKanban}
+        />
 
-          return (
-            <div
-              key={stat.label}
-              className="rounded-xl border border-slate-800 bg-slate-900 p-5"
-            >
-              <div className="mb-4 flex items-center justify-between">
-                <p className="text-sm text-slate-400">
-                  {stat.label}
-                </p>
+        <StatCard
+          label="Active Projects"
+          value={
+            loading
+              ? "..."
+              : activeProjects
+          }
+          icon={ShieldCheck}
+        />
 
-                <Icon
-                  size={18}
-                  className="text-blue-400"
-                />
-              </div>
-
-              <p className="text-3xl font-semibold">
-                {loading
-                  ? "..."
-                  : stat.value}
-              </p>
-            </div>
-          );
-        })}
+        <StatCard
+          label="Developer Account"
+          value={
+            loading
+              ? "..."
+              : user?.email ?? "-"
+          }
+          icon={UserRound}
+        />
       </div>
 
 
-      <div className="mt-8 grid gap-5 lg:grid-cols-2">
-        <div className="rounded-xl border border-slate-800 bg-slate-900 p-6">
-          <h3 className="text-lg font-semibold">
-            Request Decisions
+      <div className="mt-10">
+        <div className="mb-5 flex items-center justify-between">
+          <h3 className="text-xl font-semibold">
+            Your Projects
           </h3>
 
-          <div className="mt-6 space-y-4">
-            <DecisionRow
-              label="Allowed"
-              value={
-                summary?.allowed_requests ?? 0
-              }
-            />
-
-            <DecisionRow
-              label="Rate Limited"
-              value={
-                summary?.rate_limited_requests ?? 0
-              }
-            />
-
-            <DecisionRow
-              label="Server Errors"
-              value={
-                summary?.server_error_requests ?? 0
-              }
-            />
-          </div>
+          <Link
+            href="/dashboard/projects"
+            className="text-sm text-blue-400 transition hover:text-blue-300"
+          >
+            View all
+          </Link>
         </div>
 
 
-        <div className="rounded-xl border border-slate-800 bg-slate-900 p-6">
-          <h3 className="text-lg font-semibold">
-            System Status
-          </h3>
+        {loading ? (
+          <p className="text-slate-400">
+            Loading projects...
+          </p>
+        ) : projects.length === 0 ? (
+          <div className="rounded-xl border border-dashed border-slate-700 p-10 text-center">
+            <p className="text-slate-400">
+              You have not created a project yet.
+            </p>
 
-          <div className="mt-6 space-y-4">
-            <StatusRow
-              label="FastAPI"
-              status="Connected"
-            />
-
-            <StatusRow
-              label="Redis"
-              status="Active"
-            />
-
-            <StatusRow
-              label="PostgreSQL"
-              status="Active"
-            />
+            <Link
+              href="/dashboard/projects"
+              className="mt-4 inline-block text-blue-400"
+            >
+              Create your first project
+            </Link>
           </div>
-        </div>
+        ) : (
+          <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
+            {projects
+              .slice(0, 6)
+              .map((project) => (
+                <Link
+                  key={project.id}
+                  href={
+                    `/dashboard/projects/${project.id}`
+                  }
+                  className="rounded-xl border border-slate-800 bg-slate-900 p-5 transition hover:border-slate-700"
+                >
+                  <div className="flex items-start justify-between gap-3">
+                    <div>
+                      <p className="font-semibold">
+                        {project.name}
+                      </p>
+
+                      <p className="mt-2 font-mono text-xs text-slate-500">
+                        {project.slug}
+                      </p>
+                    </div>
+
+                    <span
+                      className={
+                        project.is_active
+                          ? "text-xs text-emerald-400"
+                          : "text-xs text-red-400"
+                      }
+                    >
+                      {project.is_active
+                        ? "● Active"
+                        : "● Inactive"}
+                    </span>
+                  </div>
+                </Link>
+              ))}
+          </div>
+        )}
       </div>
     </div>
   );
 }
 
 
-function DecisionRow({
+function StatCard({
   label,
   value,
+  icon: Icon,
 }: {
   label: string;
-  value: number;
+  value: string | number;
+  icon: typeof FolderKanban;
 }) {
   return (
-    <div className="flex items-center justify-between rounded-lg bg-slate-950 p-4">
-      <span className="text-slate-400">
-        {label}
-      </span>
+    <div className="rounded-xl border border-slate-800 bg-slate-900 p-5">
+      <div className="flex items-center justify-between">
+        <p className="text-sm text-slate-400">
+          {label}
+        </p>
 
-      <span className="font-semibold">
-        {value.toLocaleString()}
-      </span>
-    </div>
-  );
-}
+        <Icon
+          size={18}
+          className="text-blue-400"
+        />
+      </div>
 
-
-function StatusRow({
-  label,
-  status,
-}: {
-  label: string;
-  status: string;
-}) {
-  return (
-    <div className="flex items-center justify-between rounded-lg bg-slate-950 p-4">
-      <span className="text-slate-400">
-        {label}
-      </span>
-
-      <span className="text-sm text-emerald-400">
-        ● {status}
-      </span>
+      <p className="mt-4 break-words text-2xl font-semibold">
+        {typeof value === "number"
+          ? value.toLocaleString()
+          : value}
+      </p>
     </div>
   );
 }
