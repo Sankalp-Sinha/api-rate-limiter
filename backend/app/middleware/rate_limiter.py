@@ -16,6 +16,11 @@ class RateLimiterMiddleware(BaseHTTPMiddleware):
     async def dispatch(self, request: Request, call_next):
         if request.method == "OPTIONS":
             return await call_next(request)
+        if request.url.path in {
+            "/metrics",
+            "/metrics/",
+        }:
+            return await call_next(request)
 
         rate_limited_paths = [
             "/api/protected"

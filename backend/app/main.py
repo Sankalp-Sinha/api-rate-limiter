@@ -1,5 +1,6 @@
 from fastapi import FastAPI
 from sqlalchemy import text
+from fastapi import Response
 from starlette.responses import JSONResponse
 from app.routers.admin import router as admin_router
 from app.routers.analytics import router as analytics_router
@@ -21,6 +22,14 @@ from app.routers.project_analytics import (
 from app.routers.auth import (
     router as auth_router,
 )
+from prometheus_client import (
+    CONTENT_TYPE_LATEST,
+    generate_latest,
+)
+
+from app.middleware.prometheus_metrics import (
+    PrometheusMiddleware,
+)
 
 from app.db import engine
 from app.middleware.rate_limiter import RateLimiterMiddleware
@@ -37,8 +46,21 @@ fastapi_app = FastAPI(
     version="1.0.0",
 )
 
+@fastapi_app.get(
+    "/metrics",
+    include_in_schema=False,
+)
+def prometheus_metrics():
+    return Response(
+        content=generate_latest(),
+        media_type=CONTENT_TYPE_LATEST,
+    )
+
 fastapi_app.add_middleware(
     RateLimiterMiddleware
+)
+fastapi_app.add_middleware(
+    PrometheusMiddleware
 )
 
 
@@ -63,6 +85,8 @@ app = FastAPI(
 app.add_middleware(RateLimiterMiddleware)
 app.include_router(admin_router)
 app.include_router(analytics_router)
+
+
 
 @fastapi_app.get("/")
 def health_check():
