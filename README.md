@@ -1,36 +1,47 @@
-# Distributed API Rate Limiter & API Protection Gateway
+# RateGuard
 
-A production-grade API rate limiter built using FastAPI, Redis, and the Token Bucket algorithm.
+RateGuard is a multi-tenant, hosted rate-limiting decision service for backend applications.
 
-## Current Features
+Developers create projects, generate integration keys, configure per-endpoint rate-limit policies, and call a centralized `/v1/check` API before executing protected operations.
 
-- FastAPI backend
-- Redis-backed token bucket rate limiter
-- Atomic Redis Lua script for race-condition-free token updates
-- Rate limiting by client IP and route
-- Proper HTTP 429 response
-- Rate limit headers:
-  - X-RateLimit-Limit
-  - X-RateLimit-Remaining
-  - X-RateLimit-Reset
-  - Retry-After
-- Redis health check endpoint
-- Docker Compose setup for Redis
+The core rate-limiting path uses Redis and an atomic Lua token-bucket implementation, while PostgreSQL stores persistent configuration, project ownership, request logs, and analytics.
 
-## Tech Stack
+---
 
-- Python
-- FastAPI
-- Redis
-- Docker
-- Lua scripting
+## Live Demo
 
-## API Endpoints
+### Frontend
 
-```txt
-GET /
-GET /health/redis
-GET /api/public
-GET /api/protected
+`<YOUR_VERCEL_FRONTEND_URL>`
 
+### Backend
 
+`https://rateguard-backend-production.up.railway.app`
+
+### Health
+
+`https://rateguard-backend-production.up.railway.app/health/live`
+
+> Replace the frontend placeholder with the actual deployed Vercel URL.
+
+---
+
+## What Problem Does RateGuard Solve?
+
+Applications often need limits such as:
+
+- 5 AI resume generations per minute
+- 100 API calls per hour
+- 10 OTP requests per minute
+- 50 search requests per second
+
+Implementing distributed rate limiting independently in every backend creates duplicated logic and inconsistent behavior.
+
+RateGuard centralizes this decision.
+
+A backend sends:
+
+```http
+POST /v1/check
+Authorization: Bearer rg_project_...
+Content-Type: application/json

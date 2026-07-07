@@ -1,25 +1,24 @@
 import os
-from collections.abc import Generator
-from pathlib import Path
 
 from dotenv import load_dotenv
 from sqlalchemy import create_engine
-from sqlalchemy.orm import DeclarativeBase, Session, sessionmaker
+from sqlalchemy.orm import (
+    DeclarativeBase,
+    sessionmaker,
+)
+
 from app.database_url import (
     normalize_database_url,
 )
 
 
-BACKEND_DIR = Path(__file__).resolve().parent.parent
+load_dotenv()
 
-load_dotenv(
-    dotenv_path=BACKEND_DIR / ".env",
-    override=True
-)
 
 RAW_DATABASE_URL = os.getenv(
     "DATABASE_URL"
 )
+
 
 if not RAW_DATABASE_URL:
     raise RuntimeError(
@@ -28,14 +27,32 @@ if not RAW_DATABASE_URL:
     )
 
 
+RAW_DATABASE_URL = (
+    RAW_DATABASE_URL.strip()
+)
+
+
 DATABASE_URL = normalize_database_url(
     RAW_DATABASE_URL
 )
 
-if not DATABASE_URL:
-    raise RuntimeError(
-        "DATABASE_URL environment variable is not configured"
+
+if not DATABASE_URL.startswith(
+    (
+        "postgresql+psycopg://",
+        "postgresql://",
+        "postgres://",
     )
+):
+    raise RuntimeError(
+        "DATABASE_URL has an invalid format. "
+        f"Received prefix: "
+        f"{DATABASE_URL[:30]!r}"
+    )
+
+
+class Base(DeclarativeBase):
+    pass
 
 
 engine = create_engine(
@@ -49,18 +66,5 @@ engine = create_engine(
 SessionLocal = sessionmaker(
     bind=engine,
     autoflush=False,
-    expire_on_commit=False,
+    autocommit=False,
 )
-
-
-class Base(DeclarativeBase):
-    pass
-
-
-def get_db() -> Generator[Session, None, None]:
-    db = SessionLocal()
-
-    try:
-        yield db
-    finally:
-        db.close()

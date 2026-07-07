@@ -1,29 +1,31 @@
 def normalize_database_url(
     database_url: str,
 ) -> str:
-    """
-    Ensure SQLAlchemy uses psycopg 3
-    for PostgreSQL connections.
-    """
+    url = database_url.strip()
 
-    if database_url.startswith(
+    if url.startswith(
+        "postgresql+psycopg://"
+    ):
+        return url
+
+    if url.startswith(
         "postgresql://"
     ):
         return (
             "postgresql+psycopg://"
-            + database_url[
+            + url[
                 len("postgresql://"):
             ]
         )
 
-    if database_url.startswith(
+    if url.startswith(
         "postgres://"
     ):
         return (
             "postgresql+psycopg://"
-            + database_url[
+            + url[
                 len("postgres://"):
             ]
         )
 
-    return database_url
+    return url
